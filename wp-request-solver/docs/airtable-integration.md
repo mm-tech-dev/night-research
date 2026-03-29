@@ -91,6 +91,8 @@ Prefer `אתר.url`, fall back to `פתח אתר[0]`.
 |--------|---------|---------|
 | `ממתין לביצוע` | Waiting for execution | **Pick up these** |
 | `בטיפול` | In progress | Claimed by orchestrator |
+| `ממתין לאישור תוכנית` | Waiting for plan approval | Triage done, awaiting user approval via Airtable mobile |
+| `מאושר לביצוע` | Approved for execution | User approved the plan, agent proceeds to execute |
 | `בוצע` | Completed | Successfully done |
 | `נכשל` | Failed | Execution failed |
 | `דורש אישור אנושי` | Needs human approval | Escalated |

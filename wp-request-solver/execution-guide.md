@@ -110,9 +110,174 @@ If an agent returns only an agentId with no text content, re-run immediately.
 
 If `DRY_RUN=true`, skip Phase 2. Generate triage summary and stop.
 
+## Step 5.5: Human Approval Gate (WhatsApp + Airtable Mobile)
+
+**CRITICAL: NEVER skip this step. No request proceeds to execution without explicit user approval.**
+
+This step uses a **mobile-friendly approval flow**: the agent writes the plan to Airtable, sends a WhatsApp notification, and polls Airtable until the user approves from the Airtable mobile app.
+
+### 5.5a: Write triage plan to Airtable
+
+For each triaged request, PATCH the record with the execution plan in `הערות אישיות פנייה` and set status to `ממתין לאישור תוכנית`:
+
+```bash
+# Build the plan summary in Hebrew
+PLAN_TEXT="--- תוכנית ביצוע אוטומטית (${DATE}) ---
+
+📋 פנייה #${REQUEST_NUMBER} — ${REQUEST_TITLE}
+
+👤 לקוח: ${CLIENT_NAME}
+🌐 אתר: ${SITE_URL}
+⚡ דחיפות: ${PRIORITY}
+📅 דד ליין: ${DEADLINE}
+
+📝 מה הלקוח מבקש:
+${REQUEST_CONTENT}
+
+🔍 ניתוח:
+- סוג משימה: ${TASK_TYPE}
+- רמת סיכון: ${RISK_LEVEL}
+
+📐 תוכנית ביצוע:
+${STEP_BY_STEP_PLAN}
+
+⚠️ הערות: ${NOTES}
+
+---
+✅ לאישור → שנה סטטוס ל'מאושר לביצוע' באיירטייבל
+❌ לדחייה → שנה סטטוס ל'ממתין לביצוע'"
+
+# First fetch existing notes
+CURRENT_NOTES=$(curl -s "https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${RECORD_ID}?fields%5B%5D=%D7%94%D7%A2%D7%A8%D7%95%D7%AA%20%D7%90%D7%99%D7%A9%D7%99%D7%95%D7%AA%20%D7%A4%D7%A0%D7%99%D7%99%D7%94" \
+  -H "Authorization: Bearer ${AIRTABLE_TOKEN}")
+
+# PATCH: set status + append plan to notes
+curl -s -X PATCH "https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${RECORD_ID}" \
+  -H "Authorization: Bearer ${AIRTABLE_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fields": {
+      "סטטוס פנייה": "ממתין לאישור תוכנית",
+      "הערות אישיות פנייה": "EXISTING_NOTES + PLAN_TEXT"
+    }
+  }'
+```
+
+### 5.5b: Send notification (Discord + WhatsApp)
+
+Send a notification with the plan summary. Check `.env` for which channels are enabled.
+
+**Discord (primary — if `DISCORD_ENABLED=true`):**
+
+**IMPORTANT: On Windows, Hebrew in Discord requires writing JSON to a UTF-8 file first, then sending with `--data-binary @file`.**
+
+```python
+# Step 1: Build message and write to temp file
+import json
+msg = f"""🔔 **תוכנית ביצוע לפנייה #{REQUEST_NUMBER}**
+
+👤 {CLIENT_NAME} | 🌐 {SITE_URL}
+
+📝 **מה הלקוח מבקש:**
+{REQUEST_CONTENT_SHORT}
+
+📐 **תוכנית ביצוע:**
+{PLAN_STEPS_SHORT}
+
+⚠️ סיכון: {RISK_LEVEL}
+
+✅ **לאישור** → שנה סטטוס ל **מאושר לביצוע** באיירטייבל
+❌ **לדחייה** → שנה סטטוס ל **ממתין לביצוע**"""
+
+payload = json.dumps({"content": msg}, ensure_ascii=False)
+with open('/tmp/discord_msg.json', 'w', encoding='utf-8') as f:
+    f.write(payload)
+```
+
+```bash
+# Step 2: Send with curl
+curl -s -X POST "${DISCORD_WEBHOOK}" \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @/tmp/discord_msg.json
+```
+
+**WhatsApp (fallback — if `WHATSAPP_ENABLED=true`):**
+```bash
+MSG="🔔 תוכנית ביצוע לפנייה #${REQUEST_NUMBER}\n\n👤 ${CLIENT_NAME}\n🌐 ${SITE_URL}\n\n📝 ${REQUEST_CONTENT_SHORT}\n\n📐 תוכנית:\n${PLAN_STEPS_SHORT}\n\n⚠️ סיכון: ${RISK_LEVEL}\n\n✅ לאישור — שנה סטטוס ל'מאושר לביצוע' באיירטייבל\n❌ לדחייה — שנה סטטוס ל'ממתין לביצוע'"
+ENCODED_MSG=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$MSG'))")
+curl -s "https://mgmt1.mrvsn.com/sendWhatsappMoresend.php?phone=ae8482e2-cfcd-4464-a81c-cee335415a7c&msg=${ENCODED_MSG}"
+```
+
+**Keep messages concise** — full details are in Airtable.
+
+### 5.5c: Poll Airtable for approval
+
+Poll the record status every 30 seconds. Wait up to 24 hours (configurable via `APPROVAL_TIMEOUT_HOURS` in .env, default 24).
+
+```bash
+# Poll loop
+while true; do
+  STATUS=$(curl -s "https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${RECORD_ID}?fields%5B%5D=%D7%A1%D7%98%D7%98%D7%95%D7%A1%20%D7%A4%D7%A0%D7%99%D7%99%D7%94" \
+    -H "Authorization: Bearer ${AIRTABLE_TOKEN}" | python3 -c "import sys,json; print(json.load(sys.stdin)['fields'].get('סטטוס פנייה',''))")
+
+  case "$STATUS" in
+    "מאושר לביצוע")
+      echo "✅ Approved — proceeding to execution"
+      break
+      ;;
+    "ממתין לביצוע")
+      echo "❌ Rejected — skipping request"
+      # Request was rejected, skip execution
+      break
+      ;;
+    "ממתין לאישור תוכנית")
+      # Still waiting, sleep 30 seconds
+      sleep 30
+      ;;
+    *)
+      echo "⚠️ Unexpected status: $STATUS"
+      break
+      ;;
+  esac
+done
+```
+
+### Handling approval responses:
+
+| Airtable Status | Action |
+|----------------|--------|
+| `מאושר לביצוע` | Add to approved list → proceed to Phase 2 |
+| `ממתין לביצוע` | User rejected → skip this request, do NOT execute |
+| `ממתין לאישור תוכנית` (timeout) | After 24h → send WhatsApp reminder, then PATCH back to `ממתין לביצוע` |
+
+### Multiple requests:
+
+When processing multiple requests in a batch:
+1. Write ALL triage plans to Airtable simultaneously (5.5a for all)
+2. Send ONE Discord/WhatsApp summary with all pending approvals
+3. Poll ALL pending records together (single API call with multiple record IDs)
+4. As each is approved, queue it for Phase 2
+5. Start executing approved requests while still polling for remaining approvals
+
+### Fallback: CLI approval
+
+If the orchestrator detects it's running interactively (not in continuous mode), also display the plan in the terminal and accept CLI approval ("אשר" / "דלג"). This allows approval from either Airtable mobile OR the terminal.
+
+### Saving approval status:
+
+After approval, append to the triage file:
+```
+=== APPROVAL ===
+Status: APPROVED / REJECTED / TIMEOUT
+Source: airtable / cli
+Approved at: YYYY-MM-DD HH:MM
+```
+
 ## Step 6: Phase 2 — Executor Agents
 
-For each triaged request (that isn't flagged for human) → subagent via Task tool.
+**Only execute requests that were approved in Step 5.5.**
+
+For each **approved** triaged request (that isn't flagged for human and was approved in Step 5.5) → subagent via Task tool.
 
 **CRITICAL: One agent per site at a time.** If two requests target the same site, process them sequentially, not in the same batch.
 
@@ -211,18 +376,25 @@ curl -s -X PATCH "https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}
   }'
 ```
 
-### 7d. Send WhatsApp
+### 7d. Send Notifications (Discord + WhatsApp)
 
+**Discord (primary):** Write JSON to UTF-8 file, then send:
+```python
+import json
+# Build message per outcome (SUCCESS/FAILED/NEEDS_HUMAN)
+msg = f"✅ **פנייה #{REQUEST_NUMBER} בוצעה בהצלחה**\n\n👤 {CLIENT_NAME} | 🌐 {SITE_URL}\n\n📝 {SUMMARY}\n\nצילומי מסך והערות עודכנו באיירטייבל"
+payload = json.dumps({"content": msg}, ensure_ascii=False)
+with open('/tmp/discord_msg.json', 'w', encoding='utf-8') as f:
+    f.write(payload)
+```
 ```bash
-# Success
-MSG="✅ פנייה #${REQUEST_NUMBER} בוצעה בהצלחה\n\nלקוח: ${CLIENT_NAME}\nאתר: ${SITE_URL}\nמה בוצע: [summary]\n\nצילומי מסך והערות עודכנו באיירטייבל"
+curl -s -X POST "${DISCORD_WEBHOOK}" \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-binary @/tmp/discord_msg.json
+```
 
-# Failure
-MSG="❌ פנייה #${REQUEST_NUMBER} נכשלה\n\nלקוח: ${CLIENT_NAME}\nאתר: ${SITE_URL}\nסיבה: [reason]\n\nנדרש טיפול ידני"
-
-# Needs human
-MSG="🔴 פנייה #${REQUEST_NUMBER} דורשת טיפול אנושי\n\nלקוח: ${CLIENT_NAME}\nאתר: ${SITE_URL}\nסיבה: [reason]\n\nתיאור: ${REQUEST_TITLE}"
-
+**WhatsApp (fallback):**
+```bash
 ENCODED_MSG=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$MSG'))")
 curl -s "https://mgmt1.mrvsn.com/sendWhatsappMoresend.php?phone=ae8482e2-cfcd-4464-a81c-cee335415a7c&msg=${ENCODED_MSG}"
 ```

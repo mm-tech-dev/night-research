@@ -89,6 +89,61 @@ curl -s "https://mgmt1.mrvsn.com/sendWhatsappMoresend.php?phone=ae8482e2-cfcd-44
 ```
 - STOP — do not execute
 
+### Step 5.5: Human Approval Gate (WhatsApp + Airtable Mobile)
+
+**CRITICAL: NEVER proceed to execution without explicit user approval.**
+
+#### 5.5a: Write plan to Airtable + set status
+
+```bash
+# PATCH: write plan to notes + set status to waiting for approval
+curl -s -X PATCH "https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${RECORD_ID}" \
+  -H "Authorization: Bearer ${AIRTABLE_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fields": {
+      "סטטוס פנייה": "ממתין לאישור תוכנית",
+      "הערות אישיות פנייה": "EXISTING + PLAN_SUMMARY"
+    }
+  }'
+```
+
+The plan summary should include:
+- מה הלקוח מבקש (request content)
+- סוג משימה + רמת סיכון
+- תוכנית ביצוע צעד אחר צעד
+- הנחיות לאישור/דחייה
+
+#### 5.5b: Send WhatsApp notification
+
+```bash
+MSG="🔔 תוכנית ביצוע לפנייה #${REQUEST_NUMBER}\n\n👤 ${CLIENT_NAME} | 🌐 ${SITE_URL}\n\n📝 ${REQUEST_CONTENT_SHORT}\n\n📐 תוכנית:\n${PLAN_STEPS_SHORT}\n\n✅ אשר באיירטייבל → שנה סטטוס ל'מאושר לביצוע'\n❌ דחה → שנה סטטוס ל'ממתין לביצוע'"
+ENCODED_MSG=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$MSG'))")
+curl -s "https://mgmt1.mrvsn.com/sendWhatsappMoresend.php?phone=ae8482e2-cfcd-4464-a81c-cee335415a7c&msg=${ENCODED_MSG}"
+```
+
+#### 5.5c: Wait for approval
+
+**Option A — Interactive mode (running in CLI):**
+Also display the plan in the terminal and accept direct approval:
+```
+═══════════════════════════════════════════════════
+📋 פנייה #${REQUEST_NUMBER} — ${REQUEST_TITLE}
+...plan details...
+═══════════════════════════════════════════════════
+✅ "אשר" | ❌ "בטל" | ✏️ כתוב שינויים
+(או אשר מאפליקציית Airtable בנייד)
+═══════════════════════════════════════════════════
+```
+
+**Option B — Background/autonomous mode:**
+Poll Airtable every 30 seconds until status changes:
+- `מאושר לביצוע` → Proceed to Step 6
+- `ממתין לביצוע` → User rejected, STOP
+- Timeout after 24 hours → send WhatsApp reminder, then revert to `ממתין לביצוע`
+
+**Approval from EITHER source (CLI or Airtable) is valid.** Check both.
+
 ### Step 6: Execute
 
 Read `prompts/executor-agent.md` and the relevant docs:
