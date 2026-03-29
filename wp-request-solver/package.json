@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "playwright": "^1.58.2"
+  },
+  "name": "wp-request-solver",
+  "version": "1.0.0",
+  "description": "An autonomous multi-agent system built on [Claude Code](https://claude.ai/claude-code) that polls Airtable for pending client requests and solves them on production WordPress/WooCommerce/Elementor sites using Playwright browser automation. Runs continuously — every hour it picks up new tasks, triages them, executes via browser, verifies, and reports back.",
+  "main": "discover-products.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
