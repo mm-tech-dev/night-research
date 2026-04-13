@@ -1,0 +1,20 @@
+{
+  "sites": {
+    "kingliel": {
+      "url": "https://kingliel.s2.mrvsn.com",
+      "username": "mv-dev",
+      "app_password": "xxxx xxxx xxxx xxxx xxxx xxxx",
+      "description": "Get Over It - Oshra Yosef"
+    },
+    "client2": {
+      "url": "https://client2.example.com",
+      "username": "wp-admin",
+      "app_password": "xxxx xxxx xxxx xxxx xxxx xxxx",
+      "description": "Client 2 site"
+    }
+  },
+  "defaults": {
+    "mcp_protocol_version": "2024-11-05",
+    "proxy_path": "./elementor-mcp/mcp-proxy.mjs"
+  }
+}

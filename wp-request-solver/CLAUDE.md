@@ -13,7 +13,8 @@ Main Orchestrator (runs continuously, hourly cycles)
 ├── ** Human Approval Gate **
 │   └── Present triage summary → wait for user approval → proceed / skip / modify
 ├── Phase 2: Execute (1 agent per request, batches of 3, max_turns:30)
-│   └── Playwright: login → screenshot → act → screenshot → verify
+│   ├── Elementor MCP: direct API for page building, content updates, widget changes
+│   └── Playwright: login → screenshot → act → screenshot → verify (visual/WooCommerce)
 ├── Phase 3: Report Back
 │   ├── PATCH Airtable → בוצע / נכשל / דורש אישור אנושי
 │   └── WhatsApp for escalations
@@ -58,6 +59,52 @@ Say "run the wp request solver" → read `execution-guide.md` and follow all ste
 ### Execute an existing triage
 "execute triage reports/YYYY-MM-DD/triage/recXXXXXXXXXXXXXX.md" → read `prompts/run-single-request.md`, skip to Step 5.
 
+## Elementor MCP (Direct API)
+
+In addition to Playwright browser automation, **Elementor MCP tools** are available for direct API access to WordPress/Elementor — much faster and more reliable for page building and content updates.
+
+### Available Tools (per connected site)
+Tools are prefixed by site alias: `elementor-{alias}-{tool}` (e.g. `elementor-kingliel-list-pages`)
+
+Key tools: `list-pages`, `get-page-structure`, `build-page`, `update-widget`, `update-container`, `add-heading`, `add-button`, `add-form`, `sideload-image`, `search-images`, `get-global-settings`, `find-element`
+
+### When to Use MCP vs Playwright
+| Task | Elementor MCP | Playwright |
+|------|:---:|:---:|
+| Build new page | ✅ | ❌ |
+| Update text/widget settings | ✅ | ❌ |
+| Upload images | ✅ | ❌ |
+| Read page structure | ✅ | ❌ |
+| Fix CSS/gradient rendering | ❌ | ✅ |
+| Visual QA / screenshots | ❌ | ✅ |
+| Login-required actions | ❌ | ✅ |
+| WooCommerce admin tasks | ❌ | ✅ |
+
+### Connecting a New Site
+Run: `node add-site.js <url>` — automates everything:
+1. Logs in with shared credentials from `.env`
+2. Installs & activates the `elementor-mcp` plugin
+3. Creates Application Password
+4. Adds to `sites.json` and regenerates `.mcp.json`
+
+```bash
+# Single site
+node add-site.js https://newclient.com --alias client1
+
+# Batch (file with one URL per line)
+node add-site.js --batch sites-list.txt
+```
+
+After adding, restart Claude Code to load the new MCP server.
+
+### Configuration Files
+| File | Purpose |
+|------|---------|
+| `sites.json` | All connected sites + credentials |
+| `.mcp.json` | Generated MCP config (auto-generated, do not edit manually) |
+| `elementor-mcp/mcp-proxy.mjs` | stdio-to-HTTP bridge for Elementor API |
+| `add-site.js` | One-command site setup script |
+
 ## Key Files
 
 | File | Purpose |
@@ -70,6 +117,8 @@ Say "run the wp request solver" → read `execution-guide.md` and follow all ste
 | `templates/request-report.md` | Per-request evidence report |
 | `templates/run-report.md` | Full cycle summary |
 | `docs/` | WP Admin, Elementor, WooCommerce guides |
+| `add-site.js` | Auto-connect new WordPress site |
+| `sites.json` | Connected sites configuration |
 
 ## Credentials
 

@@ -215,6 +215,31 @@ wp @site elementor update db          # Update database after version change
 
 ---
 
+## Elementor MCP (Direct API Access)
+
+When running in the `wp-request-solver/` directory, **Elementor MCP tools** are available for direct API access without browser automation. These are significantly faster and more reliable for:
+
+- **Page building**: `build-page` creates full pages with 100+ elements in one call
+- **Widget updates**: `update-widget` modifies settings directly
+- **Content management**: `list-pages`, `get-page-structure`, `find-element`
+- **Image management**: `search-images`, `sideload-image`
+- **Global settings**: `get-global-settings`, `update-global-colors`
+
+MCP tool names are prefixed by site: `elementor-{site-alias}-{tool-name}` (e.g. `elementor-kingliel-list-pages`).
+
+**When to use MCP vs Browser:**
+| Task | Use MCP | Use Browser |
+|------|---------|-------------|
+| Build new page | Yes | No |
+| Update text/settings | Yes | No |
+| Upload images | Yes | No |
+| Fix CSS/gradient bugs | No | Yes (Ctrl+S in editor) |
+| Visual QA | No | Yes (Playwright screenshot) |
+
+See `wp-elementor-manager` skill for full MCP documentation and multi-site configuration.
+
+---
+
 ## Reference Files
 
 - `references/elementor-workflows.md` — Browser automation steps, template management, safe editing patterns

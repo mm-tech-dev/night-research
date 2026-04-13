@@ -17,5 +17,10 @@ node_modules/
 .claude/todos/
 .claude/plans/
 
+# MCP configuration (contains credentials)
+sites.json
+.mcp.json
+logs/
+
 # Reports (generated output, don't track)
 reports/
