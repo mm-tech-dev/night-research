@@ -174,10 +174,17 @@ async function addSite(url, alias, description) {
     // Step 1: Login
     console.log('[1/4] Logging in to WordPress...');
     await page.goto(`${url}/wp-login.php`, { timeout: 30000 });
+    // Ensure wordpress_test_cookie exists (some hosts strip Set-Cookie in headless)
+    await context.addCookies([{
+      name: 'wordpress_test_cookie',
+      value: 'WP+Cookie+check',
+      domain: new URL(url).hostname,
+      path: '/',
+    }]);
     await page.fill('#user_login', WP_USERNAME);
     await page.fill('#user_pass', WP_PASSWORD);
     await page.click('#wp-submit');
-    await page.waitForURL('**/wp-admin/**', { timeout: 15000 });
+    await page.waitForURL('**/wp-admin/**', { timeout: 30000 });
     console.log('      Logged in successfully.');
 
     // Step 2: Check if plugin is installed, if not - install it

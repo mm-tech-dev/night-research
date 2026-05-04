@@ -1,0 +1,18 @@
+ROUTE /mv-seo/v1
+  methods= ['GET']
+  args= {
+  "namespace": {
+    "default": "mv-seo/v1",
+    "required": false
+  },
+  "context": {
+    "default": "view",
+    "required": false
+  }
+}
+ROUTE /mv-seo/v1/post
+  methods= ['POST']
+  args= []
+ROUTE /mv-seo/v1/categories
+  methods= ['GET']
+  args= []

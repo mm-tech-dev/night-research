@@ -1,0 +1,21 @@
+HTTP/1.1 404 Not Found
+Date: Sun, 03 May 2026 09:06:32 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 21
+Connection: keep-alive
+Set-Cookie: AWSALBTG=9H92+Hk6muwCqwNEw2otfgdFRmO3muAu5hnlRKXrNCykVQqUb0QNq49VrtVryFOh7qQVHjK3bxmXpdqNXKLLJUAhvonkmJptRWmdKaTPYDKnlt/xKaGIPHi+a8xwmBttopuM6Ibl5++BWwAM1UstN1kzQNIDMLrdxiRQViK+hpH5aRtRxW4=; Expires=Sun, 10 May 2026 09:06:32 GMT; Path=/
+Set-Cookie: AWSALBTGCORS=9H92+Hk6muwCqwNEw2otfgdFRmO3muAu5hnlRKXrNCykVQqUb0QNq49VrtVryFOh7qQVHjK3bxmXpdqNXKLLJUAhvonkmJptRWmdKaTPYDKnlt/xKaGIPHi+a8xwmBttopuM6Ibl5++BWwAM1UstN1kzQNIDMLrdxiRQViK+hpH5aRtRxW4=; Expires=Sun, 10 May 2026 09:06:32 GMT; Path=/; SameSite=None; Secure
+Server: Tengine
+Set-Cookie: brw=brwCHrn7wVB3Tpj3s; path=/; expires=Mon, 03 May 2027 09:06:32 GMT; domain=.airtable.com; samesite=none; secure
+Set-Cookie: brwConsent=opt-in; path=/; expires=Sun, 03 May 2026 09:11:32 GMT; domain=.airtable.com; samesite=none; secure
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+access-control-allow-origin: *
+access-control-allow-methods: DELETE,GET,OPTIONS,PATCH,POST,PUT
+access-control-allow-headers: authorization,content-length,content-type,user-agent,x-airtable-application-id,x-airtable-user-agent,x-api-version,x-requested-with
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+ETag: W/"15-tcRCab2ZDkTZ4I9Oh2TI8Kt8AAg"
+airtable-datacenter-regions: us-east-1
+Vary: Accept-Encoding
+
+{"error":"NOT_FOUND"}
